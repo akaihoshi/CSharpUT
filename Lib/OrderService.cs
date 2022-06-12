@@ -9,22 +9,37 @@ namespace Lib
     public class OrderService
     {
         private string _filePath = @"C:\temp\testOrders.csv";
+        private IBookDao _bookDao;
+
+        public OrderService()
+        {
+            _bookDao = new BookDao();
+        }
+
+        public OrderService(IBookDao bookDao)
+        {
+            _bookDao = bookDao;
+        }
 
         public void SyncBookOrders()
         {
-            var orders = this.GetOrders();
+            var orders = GetOrders();
 
             // only get orders of book
             var ordersOfBook = orders.Where(x => x.Type == "Book");
 
-            var bookDao = new BookDao();
             foreach (var order in ordersOfBook)
             {
-                bookDao.Insert(order);
+                _bookDao.Insert(order);
             }
         }
 
-        private List<Order> GetOrders()
+        protected virtual IBookDao GetBookDao()
+        {
+            return new BookDao();
+        }
+
+        protected virtual List<Order> GetOrders()
         {
             // parse csv file to get orders
             var result = new List<Order>();
@@ -56,26 +71,50 @@ namespace Lib
         private Order Mapping(string[] line)
         {
             var result = new Order
-                         {
-                             ProductName = line[0],
-                             Type = line[1],
-                             Price = Convert.ToInt32(line[2]),
-                             CustomerName = line[3]
-                         };
+            {
+                ProductName = line[0],
+                Type = line[1],
+                Price = Convert.ToInt32(line[2]),
+                CustomerName = line[3]
+            };
 
             return result;
         }
     }
 
+    public class FakeOrderService : OrderService
+    {
+        private List<Order> _orderList;
+
+        public FakeOrderService(IBookDao bookDao) : base(bookDao)
+        {
+        }
+
+        public List<Order> OrderList
+        {
+            set => _orderList = value;
+        }
+
+        protected override List<Order> GetOrders()
+        {
+            return _orderList;
+        }
+    }
+
     public class Order
     {
-        public string Type         { get; set; }
-        public int    Price        { get; set; }
-        public string ProductName  { get; set; }
+        public string Type { get; set; }
+        public int Price { get; set; }
+        public string ProductName { get; set; }
         public string CustomerName { get; set; }
     }
 
-    public class BookDao
+    public interface IBookDao
+    {
+        void Insert(Order order);
+    }
+
+    public class BookDao : IBookDao
     {
         public void Insert(Order order)
         {
